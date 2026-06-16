@@ -1,5 +1,5 @@
 # frontend build
-FROM node:20-alpine AS frontend-builder
+FROM node:20-alpine@sha256:09e2b3d9726018aecf269bd35325f46bf75046a643a66d28360ec71132750ec8 AS frontend-builder
 
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json* ./
@@ -8,7 +8,7 @@ COPY web .
 RUN npm run build
 
 # backend build
-FROM golang:1.24-alpine AS builder
+FROM golang:1.26-alpine@sha256:2389ebfa5b7f43eeafbd6be0c3700cc46690ef842ad962f6c5bd6be49ed82039 AS builder
 
 ENV CGO_ENABLED=0 GOOS=linux GO111MODULE=on
 
@@ -29,13 +29,16 @@ COPY web/robots.txt ./web/robots.txt
 
 RUN go build -trimpath -mod=readonly -buildvcs=false -ldflags="-s -w" \
     -o /out/secret-api ./cmd/server
+RUN go build -trimpath -mod=readonly -buildvcs=false -ldflags="-s -w" \
+    -o /out/healthcheck ./cmd/healthcheck
 
 # runtime
-FROM gcr.io/distroless/base:nonroot
+FROM gcr.io/distroless/base:nonroot@sha256:746b9dbe3065a124395d4a7698241dbd6f3febbf01b73e48f942aabd7b8e5eac
 
 WORKDIR /app
 
 COPY --from=builder --chown=nonroot:nonroot /out/secret-api /app/secret-api
+COPY --from=builder --chown=nonroot:nonroot /out/healthcheck /app/healthcheck
 COPY --from=builder --chown=nonroot:nonroot /src/web/static /app/web/static
 COPY --from=builder --chown=nonroot:nonroot /src/web/robots.txt /app/web/robots.txt
 

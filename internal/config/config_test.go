@@ -192,6 +192,45 @@ func TestLoad_NoHTTPSDisablesRequireHTTPS(t *testing.T) {
 	}
 }
 
+func TestLoad_DefaultTheme(t *testing.T) {
+	t.Run("unset defaults to empty string", func(t *testing.T) {
+		os.Unsetenv("DEFAULT_THEME")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.DefaultTheme != "" {
+			t.Errorf("expected empty DefaultTheme, got %q", cfg.DefaultTheme)
+		}
+	})
+
+	for _, theme := range []string{"light", "dark"} {
+		t.Run(theme, func(t *testing.T) {
+			os.Setenv("DEFAULT_THEME", theme)
+			defer os.Unsetenv("DEFAULT_THEME")
+
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if cfg.DefaultTheme != theme {
+				t.Errorf("expected DefaultTheme %q, got %q", theme, cfg.DefaultTheme)
+			}
+		})
+	}
+
+	t.Run("invalid value returns error", func(t *testing.T) {
+		os.Setenv("DEFAULT_THEME", "blue")
+		defer os.Unsetenv("DEFAULT_THEME")
+
+		_, err := Load()
+		if err == nil {
+			t.Error("expected error for invalid DEFAULT_THEME")
+		}
+	})
+}
+
 func TestLoad_NoHTTPSIgnoresOtherValues(t *testing.T) {
 	testCases := []string{"0", "false", "no", ""}
 
@@ -209,5 +248,69 @@ func TestLoad_NoHTTPSIgnoresOtherValues(t *testing.T) {
 				t.Errorf("expected RequireHTTPS to be true when NO_HTTPS=%q", val)
 			}
 		})
+	}
+}
+
+func TestLoad_TrustedProxyCIDRDefault(t *testing.T) {
+	os.Unsetenv("TRUSTED_PROXY_CIDR")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.TrustedProxyCIDR != "" {
+		t.Errorf("expected empty TrustedProxyCIDR by default, got %q", cfg.TrustedProxyCIDR)
+	}
+}
+
+func TestLoad_TrustedProxyCIDR(t *testing.T) {
+	os.Setenv("TRUSTED_PROXY_CIDR", "10.0.0.0/8")
+	defer os.Unsetenv("TRUSTED_PROXY_CIDR")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.TrustedProxyCIDR != "10.0.0.0/8" {
+		t.Errorf("expected TrustedProxyCIDR %q, got %q", "10.0.0.0/8", cfg.TrustedProxyCIDR)
+	}
+}
+
+func TestLoad_TrustedProxyCIDRInvalid(t *testing.T) {
+	os.Setenv("TRUSTED_PROXY_CIDR", "not-a-cidr")
+	defer os.Unsetenv("TRUSTED_PROXY_CIDR")
+
+	_, err := Load()
+	if err == nil {
+		t.Error("expected error for invalid TRUSTED_PROXY_CIDR")
+	}
+}
+
+func TestLoad_CanonicalHostDefault(t *testing.T) {
+	os.Unsetenv("CANONICAL_HOST")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.CanonicalHost != "" {
+		t.Errorf("expected empty CanonicalHost by default, got %q", cfg.CanonicalHost)
+	}
+}
+
+func TestLoad_CanonicalHost(t *testing.T) {
+	os.Setenv("CANONICAL_HOST", "secretapi.example.com")
+	defer os.Unsetenv("CANONICAL_HOST")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.CanonicalHost != "secretapi.example.com" {
+		t.Errorf("expected CanonicalHost %q, got %q", "secretapi.example.com", cfg.CanonicalHost)
 	}
 }

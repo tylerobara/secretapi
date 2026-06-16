@@ -41,13 +41,17 @@ func main() {
 	}
 
 	repo := domain.NewRedisRepository(rdb)
-	handler := app.NewHandler(repo)
+	handler := app.NewHandler(repo, cfg.DefaultTheme)
 
 	secCfg := app.SecurityHeadersConfig{
-		RequireHTTPS: cfg.RequireHTTPS,
+		RequireHTTPS:  cfg.RequireHTTPS,
+		CanonicalHost: cfg.CanonicalHost,
 	}
 
-	router := app.NewRouter(handler, rdb, secCfg)
+	rlCfg := app.DefaultRateLimitConfig()
+	rlCfg.TrustedProxyCIDR = cfg.TrustedProxyCIDR
+
+	router := app.NewRouter(handler, rdb, secCfg, rlCfg)
 
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr(),
